@@ -1,0 +1,59 @@
+name: Build Wheels and Upload to GitHub Releases
+
+on: 
+  workflow_dispatch:
+    inputs:
+      release:
+        description: 'Release? 1 = yes, 0 = no'
+        default: '0'
+        required: true
+        type: string
+
+jobs:
+  build_wheels:
+    name: ${{ matrix.os }} Python=${{ matrix.pyver }} CUDA=${{ matrix.cuda }} CPU_INSTRUCT=${{ matrix.instruct }} Torch=${{ matrix.torch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-20.04, pyver: '3.11', cuda: '12.1.0', torch: '2.3.1', cudaarch: '8.0;8.6;8.7;8.9;9.0+PTX', instruct: 'FANCY', torch_cu: '121'}
+
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.pyver }}
+
+      - name: Build wheel
+        run: |
+          python setup.py bdist_wheel
+
+      - name: Upload Wheel to GitHub Releases
+        if: ${{ github.event.inputs.release == '1' }}
+        run: |
+          # Create release on GitHub
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"tag_name": "v${{ github.run_number }}", "name": "Release v${{ github.run_number }}", "body": "Release of version ${{ github.run_number }}"}' \
+            "https://api.github.com/repos/${{ github.repository }}/releases"
+
+          release_id=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/v${{ github.run_number }}" | jq -r .id)
+
+          # Upload wheels to release
+          for file in dist/*.whl; do
+            curl -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary @$file \
+              "https://uploads.github.com/repos/${{ github.repository }}/releases/$release_id/assets?name=$(basename $file)"
+          done
