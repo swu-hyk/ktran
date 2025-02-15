@@ -137,5 +137,5 @@ jobs:
             chmod 600 ~/.ssh/id_rsa
           }
           
-          ssh -p 22 -o StrictHostKeyChecking=no  
-          scp -P 22 -o StrictHostKeyChecking=no dist/*.whl 这样正确吗
+          ssh -p 22 -o StrictHostKeyChecking=no root@${{ secrets.SSH_SERVER }} "mkdir -p /mnt/data/release-$env:date"
+          scp -P 22 -o StrictHostKeyChecking=no dist/*.whl root@${{ secrets.SSH_SERVER }}:/mnt/data/release-$env:date/
