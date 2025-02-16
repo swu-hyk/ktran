@@ -224,6 +224,12 @@ jobs:
             echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
             chmod 600 ~/.ssh/id_rsa
           }
+      - name: Upload Wheel to GitHub Release
+        if: ${{ github.event.inputs.release == '1' }}
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/*.whl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
           
-          ssh -p ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no root@${{ secrets.SSH_SERVER }} "mkdir -p /mnt/data/release-$env:date"
-          scp -P ${{ secrets.SSH_PORT }} -o StrictHostKeyChecking=no dist/*.whl root@${{ secrets.SSH_SERVER }}:/mnt/data/release-$env:date/
